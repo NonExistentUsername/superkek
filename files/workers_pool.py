@@ -1,4 +1,5 @@
 import threading
+import traceback
 
 class Task:
     def __init__(self, func, args=()):
@@ -20,7 +21,7 @@ class Worker(threading.Thread):
                 try:
                     task.call()
                 except Exception as e:
-                    print(e)
+                    traceback.print_exc()
 
 class WorkersPool:
     def __gen_threads(self, cnt):

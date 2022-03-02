@@ -26,6 +26,23 @@ class TargetManager:
             result += str(i)
         return result + ']'
 
+    def is_ip(str):
+        data = str.split('.')
+        if len(data) == 4:
+            good = True
+            for i in range(len(data)):
+                try:
+                    data[i] = int(data[i])
+                    if not (0 <= data[i] and data[i] < 256):
+                        good = False
+                        break
+                except:
+                    good = False
+                    break
+            return good
+        else:
+            return False
+
     def create_target_from_url(url):
         if url[:8] == 'https://':
             url = url[8:]
@@ -34,8 +51,10 @@ class TargetManager:
             url = url[7:]
             protocol = 'http'
         else:
-            
-            protocol = 'http'
+            if TargetManager.is_ip(url.split('/')[0].split(':')[0]):
+                protocol = 'unknown'
+            else:
+                protocol = 'http'
         
         tmp = url.split('/')[0].split(':')
         host = tmp[0]
@@ -53,6 +72,10 @@ class TargetManager:
         if len(path) == 0:
             path = '/'
 
+        print(host)
+        print(port)
+        print(path)
+        print(protocol)
         return Target(host, port, path, protocol)
 
     def load_from_file(self, file_path):

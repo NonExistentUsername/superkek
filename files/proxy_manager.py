@@ -25,6 +25,7 @@ class Checker:
     def __add_good_proxy(self, proxy):
         self.__lock.acquire()
         self.__new_list.append(proxy)
+        print('Added proxy: {0}'.format(proxy))
         self.__lock.release()
 
     def __checked(self):
