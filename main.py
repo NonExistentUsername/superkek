@@ -82,7 +82,7 @@ class DDoS:
 
         while True:
             while pool.get_len() < config.THREAD_COUNT:
-                pool.add_task(Task(self.__weapon.attack_url, args=(self.__target_manager.get_rand(), self.__proxy_manager.get_rand())))
+                pool.add_task(Task(self.__weapon.attack, args=(self.__target_manager.get_rand(), self.__proxy_manager.get_rand())))
 
         pool.join()
 
