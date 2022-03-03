@@ -69,7 +69,7 @@ class Checker:
 
     def gen_good_list_from_lines(self, lines):
         self.__new_list = []
-        pool = WorkersPool(100)
+        pool = WorkersPool(max(100, self.__config.THREAD_COUNT))
         for i in lines:
             pool.add_task(Task(self.__check_simple, args=(i, )))
         progress_printing_thread = threading.Thread(target=self.__print_progress, args=(len(lines),))
