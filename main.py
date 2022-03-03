@@ -5,7 +5,6 @@ import logging
 import sys
 import os
 import requests
-from threading import Lock
 from files.workers_pool import *
 from files.targets_manager import *
 from files.proxy_manager import *
@@ -119,7 +118,7 @@ def convert_cnt(cnt):
 def gen_packages_stats():
     stats = ddos.get_stats()
     packets = max(stats.get_good()+stats.get_bad(), 1)
-    delivered = 'Packages delivered: {1:.1f}% ({0})'.format(convert_cnt(stats.get_good()), stats.get_good()/(packets)*100)
+    delivered = 'Sent packages: {1:.1f}% ({0})'.format(convert_cnt(stats.get_good()), stats.get_good()/(packets)*100)
     bad = 'Errors while submitting: {1:.1f}% ({0})'.format(convert_cnt(stats.get_bad()), stats.get_bad()/(packets)*100)
     proxy_connections = max(stats.get_good_proxy() + stats.get_bad_proxy(), 1)
     good_proxy_connections = 'Successful proxy connections: {1:.1f}% ({0})'.format(convert_cnt(stats.get_good_proxy()), stats.get_good_proxy()/(proxy_connections)*100)
@@ -127,7 +126,7 @@ def gen_packages_stats():
     converted = convert_bytes(stats.get_bytes())
     bytes = 'Bytes sent: {0}'.format(stats.get_bytes())
     if converted != None:
-        bytes += ' ({1:.2f} {2})'.format(stats.get_bytes(), converted[0], converted[1])
+        bytes += ' ({0:.2f} {1})'.format(converted[0], converted[1])
 
     return delivered + '\n' + bad + '\n' + good_proxy_connections + '\n' + proxy_errors + '\n' + bytes
 
@@ -141,10 +140,9 @@ def print_stat(timeout = 60):
         delta = b - last
         last = b
         converted = convert_bytes(delta)
-        if converted == None:
-            bytes = 'Sent in the last {1} seconds: {0}'.format(delta, config.CONSOLE_LOG_TIMEOUT)
-        else:
-            bytes = 'Sent in the last {3} seconds: {0} ({1:.2f} {2})'.format(delta, converted[0], converted[1], config.CONSOLE_LOG_TIMEOUT)
+        bytes = 'Sent in the last {1} seconds: {0}'.format(delta, config.CONSOLE_LOG_TIMEOUT)
+        if converted != None:
+            bytes += ' ({0:.2f} {1})'.format(converted[0], converted[1], config.CONSOLE_LOG_TIMEOUT)
         message_text = '\n' + start_time + '\n' + packages_stats + '\n' + bytes
         console_log.info(message_text)
         console_log.info('-------------------')

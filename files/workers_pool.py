@@ -1,6 +1,4 @@
-from asyncio import threads
 import threading
-import traceback
 import logging
 
 console_log = logging.getLogger('console')
