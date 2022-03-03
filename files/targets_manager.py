@@ -1,6 +1,10 @@
 from files.auxiliary_tools import *
 import random
+import traceback
+import logging
 
+console_log = logging.getLogger('console')
+file_log = logging.getLogger('file')
 class Target:
     def __init__(self, host, port, path, protocol):
         self.HOST = host
@@ -26,6 +30,9 @@ class TargetManager:
             result += str(i)
         return result + ']'
 
+    def __len__(self):
+        return len(self.__targets)
+
     def is_ip(str):
         data = str.split('.')
         if len(data) == 4:
@@ -36,7 +43,7 @@ class TargetManager:
                     if not (0 <= data[i] and data[i] < 256):
                         good = False
                         break
-                except:
+                except ValueError:
                     good = False
                     break
             return good
@@ -44,6 +51,9 @@ class TargetManager:
             return False
 
     def create_target_from_url(url):
+        if len(url) == 0:
+            return None
+
         if url[:8] == 'https://':
             url = url[8:]
             protocol = 'https'
@@ -64,6 +74,8 @@ class TargetManager:
                 port = 80
             elif protocol == 'https':
                 port = 443
+            else:
+                return None
         else:
             port = tmp[1]
 
@@ -72,21 +84,22 @@ class TargetManager:
         if len(path) == 0:
             path = '/'
 
-        print(host)
-        print(port)
-        print(path)
-        print(protocol)
         return Target(host, port, path, protocol)
 
     def load_from_file(self, file_path):
         try:
             lines = load_lines(file_path)
             result = []
-            for str in lines:
-                result.append(TargetManager.create_target_from_url(str))
+            for line in lines:
+                res = TargetManager.create_target_from_url(line)
+                if res != None:
+                    file_log.info('Added target: ' + str(res))
+                    result.append(res)
             self.__targets += result
-        except:
-            pass
+        except OSError as err:
+            console_log.critical("OS error: {0}".format(err))
+        except Exception as e:
+            console_log.exception(e)
 
     def get_rand(self):
         return random.choice(self.__targets)

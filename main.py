@@ -1,23 +1,39 @@
 import time
 import datetime
 import threading
+import logging
+import sys
 from threading import Lock
 from files.workers_pool import *
 from files.targets_manager import *
 from files.proxy_manager import *
 from files.attack import *
 from files.requests_generator import *
-
 from files.config import *
+from requests import adapters
+
+class LogSaver(logging.Handler):
+    def __init__(self, file_path):
+        super().__init__()
+        self.__file = open(file_path, 'w')
+
+    def emit(self, record: logging.LogRecord):
+        self.__file.write(self.format(record) + '\n')
+        self.__file.flush()
+
+console_handler = logging.StreamHandler(stream=sys.stdout)
+console_handler.setFormatter(logging.Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'))
+console_log = logging.getLogger('console')
+console_log.setLevel(logging.DEBUG)
+file_log = logging.getLogger('file')
+file_log.setLevel(logging.DEBUG)
+my_logsaver = LogSaver('log.txt')
+my_logsaver.setFormatter(logging.Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'))
+file_log.addHandler(my_logsaver)
+console_log.addHandler(my_logsaver)
+console_log.addHandler(console_handler)
 
 config = load_config()
-
-#BOT SETTINGS
-BOT_ENABLED = False
-API_TOKEN = '1484879304:AAEk2YvY3zR03J234RnbpyR53SUYacdjvX4'
-USE_ADMIN_LIST = True
-ADMINS = [472519122, 1028805497]
-#BOT SETTINGS
 
 class Stats:
     def notify(self, message):
@@ -85,9 +101,16 @@ class Stats:
 class DDoS:
     def __load(self):
         self.__target_manager.load_from_file('targets.txt')
-        self.__proxy_manager.load_from_file('resources/proxies.txt', config)
+        console_log.info('Loaded targets: {0}'.format(len(self.__target_manager)))
+        if len(self.__target_manager) == 0:
+            console_log.critical('No targets!')
+            exit(0)
 
-        print('Loaded proxies count: {0}'.format(len(self.__proxy_manager)))
+        self.__proxy_manager.load_from_file('resources/proxies.txt', config)
+        console_log.info('loaded proxies: {0}'.format(len(self.__proxy_manager)))
+        if len(self.__proxy_manager) == 0:
+            console_log.critical('No proxies!')
+            exit(0)
 
     def get_stats(self):
         return self.__stats
@@ -118,7 +141,6 @@ ddos_thread.start()
 my_types = ['Kb', 'Mb', 'Gb', 'Tb']
 my_cnts = ['K', 'M', 'B', 'T']
 
-
 def convert_bytes(bytes):
     if bytes < 1024:
         return None
@@ -144,56 +166,39 @@ def convert_cnt(cnt):
 def gen_packages_stats():
     stats = ddos.get_stats()
     packets = max(stats.get_good()+stats.get_bad(), 1)
-    delivered = '✅ Packages delivered: {1:.1f}% ({0})'.format(convert_cnt(stats.get_good()), stats.get_good()/(packets)*100)
-    bad = '❗️ Errors while submitting: {1:.1f}% ({0})'.format(convert_cnt(stats.get_bad()), stats.get_bad()/(packets)*100)
+    delivered = 'Packages delivered: {1:.1f}% ({0})'.format(convert_cnt(stats.get_good()), stats.get_good()/(packets)*100)
+    bad = 'Errors while submitting: {1:.1f}% ({0})'.format(convert_cnt(stats.get_bad()), stats.get_bad()/(packets)*100)
     proxy_connections = max(stats.get_good_proxy() + stats.get_bad_proxy(), 1)
-    good_proxy_connections = '✅ Successful proxy connections: {1:.1f}% ({0})'.format(convert_cnt(stats.get_good_proxy()), stats.get_good_proxy()/(proxy_connections)*100)
-    proxy_errors = '⛔️ Proxy connection errors: {1:.1f}% ({0})'.format(convert_cnt(stats.get_bad_proxy()), stats.get_bad_proxy()/(proxy_connections)*100)
+    good_proxy_connections = 'Successful proxy connections: {1:.1f}% ({0})'.format(convert_cnt(stats.get_good_proxy()), stats.get_good_proxy()/(proxy_connections)*100)
+    proxy_errors = 'Proxy connection errors: {1:.1f}% ({0})'.format(convert_cnt(stats.get_bad_proxy()), stats.get_bad_proxy()/(proxy_connections)*100)
     converted = convert_bytes(stats.get_bytes())
-    if converted == None:
-        bytes = 'ℹ️ Bytes sent: {0}'.format(stats.get_bytes())
-    else:
-        bytes = 'ℹ️ Bytes sent: {0} ({1:.2f} {2})'.format(stats.get_bytes(), converted[0], converted[1])
+    bytes = 'Bytes sent: {0}'.format(stats.get_bytes())
+    if converted != None:
+        bytes += ' ({1:.2f} {2})'.format(stats.get_bytes(), converted[0], converted[1])
 
     return delivered + '\n' + bad + '\n' + good_proxy_connections + '\n' + proxy_errors + '\n' + bytes
 
+def print_stat(timeout = 60):
+    stats = ddos.get_stats()
+    last = 0
+    while True:
+        start_time = 'Start time (UTC): {0}'.format(stats.get_start_time())
+        packages_stats = gen_packages_stats()
+        b = stats.get_bytes()
+        delta = b - last
+        last = b
+        converted = convert_bytes(delta)
+        if converted == None:
+            bytes = 'Sent in the last {1} seconds: {0}'.format(delta, config.CONSOLE_LOG_TIMEOUT)
+        else:
+            bytes = 'Sent in the last {3} seconds: {0} ({1:.2f} {2})'.format(delta, converted[0], converted[1], config.CONSOLE_LOG_TIMEOUT)
+        message_text = '\n' + start_time + '\n' + packages_stats + '\n' + bytes
+        console_log.info(message_text)
+        console_log.info('-------------------')
+        time.sleep(timeout)
 
-if config.ENABLE_CONSOLE_LOG:
-    def print_stat(timeout = 60):
-        stats = ddos.get_stats()
-        last = 0
-        while True:
-            start_time = 'Start time (UTC): {0}'.format(stats.get_start_time())
-            packages_stats = gen_packages_stats()
-            b = stats.get_bytes()
-            delta = b - last
-            last = b
-            converted = convert_bytes(delta)
-            if converted == None:
-                bytes = 'ℹ️ Delta bytes sent: {0}'.format(delta)
-            else:
-                bytes = 'ℹ️ Delta bytes sent: {0} ({1:.2f} {2})'.format(delta, converted[0], converted[1])
-            message_text = start_time + '\n' + packages_stats + '\n' + bytes
-            print(message_text)
-            print('-------------------')
-            time.sleep(timeout)
+traffic_logger = threading.Thread(target=print_stat, args=(config.CONSOLE_LOG_TIMEOUT,))
+traffic_logger.start()
 
-    logging = threading.Thread(target=print_stat, args=(config.CONSOLE_LOG_TIMEOUT,))
-    logging.start()
-
-if BOT_ENABLED:
-    import telebot
-    bot = telebot.TeleBot(API_TOKEN)
-
-    @bot.message_handler(commands=['stats'])
-    def send_stats(message):
-        if not USE_ADMIN_LIST or message.from_user.id in ADMINS:
-            start_time = 'Start time (UTC): {0}'.format(ddos.get_stats().get_start_time())
-            packages_stats = gen_packages_stats()
-            message_text = start_time + '\n' + packages_stats
-            bot.send_message(message.chat.id, message_text)
-
-    bot.infinity_polling()
-        
 ddos_thread.join()
-logging.join()
+traffic_logger.join()

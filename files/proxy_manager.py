@@ -1,8 +1,10 @@
 import random
-from tabnanny import check
 import requests
 from threading import Lock
 from files.workers_pool import *
+
+console_log = logging.getLogger('console')
+file_log = logging.getLogger('file')
 
 class Proxy:
     def __init__(self, ip, port, type):
@@ -25,7 +27,7 @@ class Checker:
     def __add_good_proxy(self, proxy):
         self.__lock.acquire()
         self.__new_list.append(proxy)
-        print('Added proxy: {0}'.format(proxy))
+        file_log.info('Added proxy: {0}'.format(proxy))
         self.__lock.release()
 
     def __checked(self):
@@ -52,12 +54,12 @@ class Checker:
     def __print_progress(self, list_size, step = 5):
         checked = self.__cnt_checked
         total = 0
-        print('Proxy checking progress: {0}%'.format(total))
+        console_log.info('Proxy checking progress: {0}%'.format(total))
         while checked < list_size:
             checked = self.__cnt_checked
             if checked / list_size * 100 >= total + step:
                 total += step
-                print('Proxy checking progress: {0}%'.format(total))
+                console_log.info('Proxy checking progress: {0}%'.format(total))
 
     def gen_good_list_from_lines(self, lines):
         self.__new_list = []
@@ -97,5 +99,7 @@ class ProxyManager:
             checker = Checker(config)
             good_proxies = checker.gen_good_list_from_lines(open(file_path, 'r').read().split('\n'))
             self.__proxies += good_proxies
+        except OSError as err:
+            console_log.critical("OS error: {0}".format(err))
         except Exception as e:
-            print(e)
+            console_log.exception(e)
