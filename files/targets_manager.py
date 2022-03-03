@@ -86,16 +86,18 @@ class TargetManager:
 
         return Target(host, port, path, protocol)
 
+
+    def load_from_list(self, lines):
+        for line in lines:
+            res = TargetManager.create_target_from_url(line)
+            if res != None:
+                file_log.debug('Added target: ' + str(res))
+                self.__targets.append(res)
+    
     def load_from_file(self, file_path):
         try:
             lines = load_lines(file_path)
-            result = []
-            for line in lines:
-                res = TargetManager.create_target_from_url(line)
-                if res != None:
-                    file_log.info('Added target: ' + str(res))
-                    result.append(res)
-            self.__targets += result
+            self.load_from_list(lines)
         except OSError as err:
             console_log.critical("OS error: {0}".format(err))
         except Exception as e:

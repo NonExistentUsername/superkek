@@ -27,7 +27,7 @@ class Checker:
     def __add_good_proxy(self, proxy):
         self.__lock.acquire()
         self.__new_list.append(proxy)
-        file_log.info('Added proxy: {0}'.format(proxy))
+        file_log.debug('Added proxy: {0}'.format(proxy))
         self.__lock.release()
 
     def __checked(self):
@@ -36,8 +36,14 @@ class Checker:
         self.__lock.release()
 
     def __check_simple(self, proxy_str):
-        ip = proxy_str.split(':')[0]
-        port = proxy_str.split(':')[1]
+        try:
+            ip = proxy_str.split(':')[0]
+            port = proxy_str.split(':')[1]
+        except IndexError:
+            file_log.debug('Bad line: {0}'.format(proxy_str))
+            self.__checked()
+            return
+
         for protocol in ['http', 'socks4', 'socks5']:
             proxy_dict = {
                 'https': f'{protocol}://{proxy_str}',
@@ -94,12 +100,16 @@ class ProxyManager:
     def get_rand(self):
         return random.choice(self.__proxies)
 
+    def load_from_list(self, lines, config):
+        checker = Checker(config)
+        good_proxies = checker.gen_good_list_from_lines(lines)
+        self.__proxies += good_proxies
+
     def load_from_file(self, file_path, config):
         try:
-            checker = Checker(config)
-            good_proxies = checker.gen_good_list_from_lines(open(file_path, 'r').read().split('\n'))
-            self.__proxies += good_proxies
+            self.load_from_list(open(file_path, 'r').read().split('\n'), config)
         except OSError as err:
             console_log.critical("OS error: {0}".format(err))
         except Exception as e:
             console_log.exception(e)
+
