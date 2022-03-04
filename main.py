@@ -170,7 +170,9 @@ def print_stat(timeout = 60):
         message_text = '\n' + packages_stats + '\n' + bytes + '\n' + delta_successful_message + '\n' + delta_errors_p
         console_log.info(message_text)
         console_log.info('-------------------')
-        time.sleep(timeout - (get_ms_time() - ms_start) / 1000.)
+        t = timeout - (get_ms_time() - ms_start) / 1000.
+        if t > 0:
+            time.sleep(t)
 
 traffic_logger = threading.Thread(target=print_stat, args=(config.CONSOLE_LOG_TIMEOUT,))
 traffic_logger.start()
