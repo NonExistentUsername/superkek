@@ -1,5 +1,4 @@
 import random
-from tkinter.messagebox import NO
 import requests
 from threading import Lock
 from files.workers_pool import *
