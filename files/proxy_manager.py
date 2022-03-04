@@ -1,10 +1,109 @@
 import random
+from tkinter.messagebox import NO
 import requests
 from threading import Lock
 from files.workers_pool import *
 
 console_log = logging.getLogger('console')
 file_log = logging.getLogger('file')
+
+class Node:
+    def __init__(self, id, value = 0, left = None, right = None):
+        self.left = left
+        self.right = right
+        self.id = id
+        self.value = value
+
+    def recalc(self):
+        self.value = 0
+        if self.left != None:
+            self.value += self.left.value
+        if self.right != None:
+            self.value += self.right.value
+
+    def build(self, l, r, value = 0):
+        if l == r:
+            return
+
+        m = (l + r) // 2
+        if self.left == None:
+            self.left = Node(self.id * 2, value)
+        self.left.build(l, m, value)
+        if m + 1 <= r:
+            if self.right == None:
+                self.right = Node(self.id * 2 + 1, value)
+            self.right.build(m + 1, r, value)
+
+        self.recalc()
+
+    def upd(self, l, r, pos, value):
+        if l == r:
+            self.value += value
+            return
+        
+        m = (l + r) // 2
+        if pos <= m:
+            if self.left == None:
+                self.left = Node(2 * self.id)
+            self.left.upd(l, m, pos, value)
+        else:
+            if self.right == None:
+                self.right = Node(2 * self.id + 1)
+            self.right.upd(m + 1, r, pos, value)
+        
+        self.recalc()
+
+    def get(self, l, r, tl, tr):
+        if l > r or r < tl or tr < l:
+            return 0
+        if tl <= l and r <= tr:
+            return self.value
+        m = (l + r) // 2
+        result = 0
+        if self.left != None:
+            result += self.left.get(l, m, tl, tr)
+        if self.right != None:
+            result += self.right.get(m + 1, r, tl, tr)
+        return result
+
+    def find(self, l, r, sum):
+        if l == r:
+            return l
+        
+        m = (l + r) // 2
+        if self.left.value < sum and self.right != None:
+            return self.right.find(m + 1, r, sum - self.left.value)
+        else:
+            return self.left.find(l, m, sum)
+
+    def get_cnt(self, l, r, sum):
+        if l == r:
+            if self.value >= sum:
+                return 1
+            return 0
+        
+        m = (l + r) // 2
+        result = 0
+        if self.left != None:
+            result += self.left.get_cnt(l, m, sum)
+        if self.right != None:
+            result += self.right.get_cnt(m + 1, r, sum)
+        return result
+
+class SumTree:
+    def __init__(self, size):
+        self.root = Node(1)
+        self.root.build(1, size, 1)
+        self.size = size
+
+    def add_value(self, pos, value = 1):
+        self.root.upd(1, self.size, pos, value)
+
+    def find_pos(self, sum):
+        return self.root.find(1, self.size, sum * self.root.get(1, self.size, 1, self.size))
+
+    def get_cnt_good(self):
+        return self.root.get_cnt(1, self.size, self.root.get(1, self.size, 1, self.size) // self.size)
 
 class Proxy:
     def __init__(self, ip, port, type):
@@ -97,10 +196,31 @@ class ProxyManager:
     def __len__(self):
         return len(self.__proxies)
 
+    def build_tree(self):
+        file_log.debug('ProxyManager.build_tree start')
+        self.__tree = SumTree(len(self.__proxies))
+        self.__proxy_to_id = {}
+        for i in range(len(self.__proxies)):
+            self.__proxy_to_id[self.__proxies[i]] = i
+        file_log.debug('ProxyManager.build_tree done')
+
+    def get_good_proxies_count(self):
+        return self.__tree.get_cnt_good()
+
+    def add_good_connection(self, proxy):
+        if proxy in self.__proxy_to_id:
+            self.__tree.add_value(self.__proxy_to_id[proxy] + 1)
+
     def get_rand(self):
-        return random.choice(self.__proxies)
+        # return random.choice(self.__proxies)
+        r = random.random()
+        id = self.__tree.find_pos(r)
+        id -= 1
+        return self.__proxies[id]
 
     def load_from_list(self, lines, config):
+        lines = list(dict.fromkeys(lines))
+        console_log.info('Proxy lines: {0}'.format(len(lines)))
         checker = Checker(config)
         good_proxies = checker.gen_good_list_from_lines(lines)
         self.__proxies += good_proxies
