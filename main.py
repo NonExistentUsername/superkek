@@ -63,15 +63,20 @@ class DDoS:
         if len(self.__proxy_manager) == 0:
             console_log.critical('No proxies!')
             exit(0)
+        
+        self.__proxy_manager.build_tree()
 
     def get_stats(self):
         return self.__stats
+
+    def get_proxy_manager(self):
+        return self.__proxy_manager
 
     def __init__(self):
         self.__proxy_manager = ProxyManager()
         self.__target_manager = TargetManager()
         self.__weapon = Weapon(config)
-        self.__stats = Stats(datetime.datetime.now())
+        self.__stats = Stats(datetime.datetime.now(), self)
         self.__weapon.add_observer(self.__stats)
 
         self.__load()
@@ -115,38 +120,57 @@ def convert_cnt(cnt):
     
     return '{0:.2f}'.format(cnt) + my_cnts[id]
 
-def gen_packages_stats():
+def gen_full_stats():
     stats = ddos.get_stats()
-    packets = max(stats.get_good()+stats.get_bad(), 1)
-    delivered = 'Sent packages: {1:.1f}% ({0})'.format(convert_cnt(stats.get_good()), stats.get_good()/(packets)*100)
-    bad = 'Errors while submitting: {1:.1f}% ({0})'.format(convert_cnt(stats.get_bad()), stats.get_bad()/(packets)*100)
-    proxy_connections = max(stats.get_good_proxy() + stats.get_bad_proxy(), 1)
-    good_proxy_connections = 'Successful proxy connections: {1:.1f}% ({0})'.format(convert_cnt(stats.get_good_proxy()), stats.get_good_proxy()/(proxy_connections)*100)
-    proxy_errors = 'Proxy connection errors: {1:.1f}% ({0})'.format(convert_cnt(stats.get_bad_proxy()), stats.get_bad_proxy()/(proxy_connections)*100)
-    converted = convert_bytes(stats.get_bytes())
-    bytes = 'Bytes sent: {0}'.format(stats.get_bytes())
+    stats_good = stats.get_good()
+    stats_bad = stats.get_bad()
+    packets = max(stats_good + stats_bad, 1)
+    start_time = 'Start time (UTC): {0}'.format(stats.get_start_time())
+    delivered = 'Sent packages: {1:.1f}% ({0})'.format(convert_cnt(stats_good), stats_good/(packets)*100)
+    bad = 'Errors while submitting: {1:.1f}% ({0})'.format(convert_cnt(stats_bad), stats_bad/(packets)*100)
+    stats_good_proxy = stats.get_good_proxy()
+    stats_bad_proxy = stats.get_bad_proxy()
+    proxy_connections = max(stats_good_proxy + stats_bad_proxy, 1)
+    good_proxies_count = 'Good proxies count: {0}'.format(ddos.get_proxy_manager().get_good_proxies_count())
+    good_proxy_connections = 'Successful proxy connections: {1:.1f}% ({0})'.format(convert_cnt(stats_good_proxy), stats_good_proxy/(proxy_connections)*100)
+    proxy_errors = 'Proxy connection errors: {1:.1f}% ({0})'.format(convert_cnt(stats_bad_proxy), stats_bad_proxy/(proxy_connections)*100)
+    b = stats.get_bytes()
+    converted = convert_bytes(b)
+    bytes = 'Bytes sent: {0}'.format(b)
     if converted != None:
         bytes += ' ({0:.2f} {1})'.format(converted[0], converted[1])
 
-    return delivered + '\n' + bad + '\n' + good_proxy_connections + '\n' + proxy_errors + '\n' + bytes
+    return start_time + '\n' + delivered + '\n' + bad + '\n' + good_proxies_count + '\n' + good_proxy_connections + '\n' + proxy_errors + '\n' + bytes
 
 def print_stat(timeout = 60):
     stats = ddos.get_stats()
-    last = 0
+    last_sent_bytes = 0
+    last_successfull_p = 0
+    last_errors_p = 0
     while True:
-        start_time = 'Start time (UTC): {0}'.format(stats.get_start_time())
-        packages_stats = gen_packages_stats()
-        b = stats.get_bytes()
-        delta = b - last
-        last = b
-        converted = convert_bytes(delta)
-        bytes = 'Sent in the last {1} seconds: {0}'.format(delta, config.CONSOLE_LOG_TIMEOUT)
+        ms_start = get_ms_time()
+        packages_stats = gen_full_stats()
+        sent_bytes_now = stats.get_bytes()
+        delta_sent_bytes = sent_bytes_now - last_sent_bytes
+        last_sent_bytes = sent_bytes_now
+        converted = convert_bytes(delta_sent_bytes)
+        bytes = 'Sent in the last {1} seconds: {0}'.format(delta_sent_bytes, config.CONSOLE_LOG_TIMEOUT)
         if converted != None:
             bytes += ' ({0:.2f} {1})'.format(converted[0], converted[1], config.CONSOLE_LOG_TIMEOUT)
-        message_text = '\n' + start_time + '\n' + packages_stats + '\n' + bytes
+        succesful_p = stats.get_good_proxy()
+        delta_successful = succesful_p - last_successfull_p
+        last_successfull_p = succesful_p
+        errors_p = stats.get_bad_proxy()
+        delta_errors = errors_p - last_errors_p
+        last_errors_p = errors_p
+        proxy_connections = max(1, delta_successful + delta_errors)
+        delta_successful_message = 'Successful proxy connection in the last {0} seconds: {2:.1f}% ({1})'.format(timeout, convert_cnt(delta_successful), delta_successful/(proxy_connections)*100)
+        
+        delta_errors_p = 'Proxy connection errors in the last {0} seconds: {2:.1f}% ({1})'.format(delta_errors, convert_cnt(delta_errors), delta_errors/(proxy_connections)*100)
+        message_text = '\n' + packages_stats + '\n' + bytes + '\n' + delta_successful_message + '\n' + delta_errors_p
         console_log.info(message_text)
         console_log.info('-------------------')
-        time.sleep(timeout)
+        time.sleep(timeout - (get_ms_time() - ms_start) / 1000.)
 
 traffic_logger = threading.Thread(target=print_stat, args=(config.CONSOLE_LOG_TIMEOUT,))
 traffic_logger.start()

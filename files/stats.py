@@ -4,6 +4,7 @@ class Stats:
     def notify(self, message):
         if message[0] == 'successfully connected to proxy':
             self.add_good_proxy()
+            self.__ddos.get_proxy_manager().add_good_connection(message[1])
         elif message[0] == 'unable to connect to proxy':
             self.add_bad_proxy()
         elif message[0] == 'packet was not sent':
@@ -12,7 +13,7 @@ class Stats:
             self.add_good()
             self.add_bytes(message[1])
 
-    def __init__(self, start_time):
+    def __init__(self, start_time, ddos):
         self.__lock = Lock()
         self.__start_time = start_time
         self.__bytes = 0
@@ -20,6 +21,7 @@ class Stats:
         self.__bad = 0
         self.__good_proxy = 0
         self.__bad_proxy = 0
+        self.__ddos = ddos
 
     def add_good(self, cnt = 1):
         self.__lock.acquire()

@@ -58,7 +58,7 @@ class Weapon(Observable):
                 ss = ctx.wrap_socket(s, server_hostname = target.HOST)
             else:
                 ss = s
-            self.notify(['successfully connected to proxy'])
+            self.notify(['successfully connected to proxy', proxy])
             return ss
         except Exception as e:
             s.close()
@@ -71,7 +71,7 @@ class Weapon(Observable):
         s.settimeout(self.__config.TIMEOUT)
         try:
             s.connect((proxy.IP, int(proxy.PORT)))
-            self.notify(['successfully connected to proxy'])
+            self.notify(['successfully connected to proxy', proxy])
         except Exception as e:
             self.notify(['unable to connect to proxy'])
             return None
