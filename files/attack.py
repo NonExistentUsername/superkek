@@ -55,6 +55,7 @@ class Weapon(Observable):
             s.connect((target.HOST, int(target.PORT)))
             if target.PROTOCOL == 'https':
                 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                ctx.load_default_certs()
                 ss = ctx.wrap_socket(s, server_hostname = target.HOST)
             else:
                 ss = s

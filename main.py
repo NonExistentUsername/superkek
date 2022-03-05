@@ -166,7 +166,7 @@ def print_stat(timeout = 60):
         proxy_connections = max(1, delta_successful + delta_errors)
         delta_successful_message = 'Successful proxy connection in the last {0} seconds: {2:.1f}% ({1})'.format(timeout, convert_cnt(delta_successful), delta_successful/(proxy_connections)*100)
         
-        delta_errors_p = 'Proxy connection errors in the last {0} seconds: {2:.1f}% ({1})'.format(delta_errors, convert_cnt(delta_errors), delta_errors/(proxy_connections)*100)
+        delta_errors_p = 'Proxy connection errors in the last {0} seconds: {2:.1f}% ({1})'.format(timeout, convert_cnt(delta_errors), delta_errors/(proxy_connections)*100)
         message_text = '\n' + packages_stats + '\n' + bytes + '\n' + delta_successful_message + '\n' + delta_errors_p
         console_log.info(message_text)
         console_log.info('-------------------')
