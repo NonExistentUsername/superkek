@@ -161,7 +161,9 @@ class Checker:
             }
             try:
                 response = requests.get('https://branchup.pro/whatsmyip.php', proxies=proxy_dict, timeout = 2 * self.__config.TIMEOUT, allow_redirects=True)
-                if response.status_code == 200 and not self.__my_ip in response.content:
+                __json = json.loads(response.content)
+                __ip = __json['ip']
+                if response.status_code == 200 and self.__my_ip != __ip:
                     self.__add_good_proxy(Proxy(ip, port, protocol))
             except:
                 pass
@@ -179,7 +181,7 @@ class Checker:
 
     def gen_good_list_from_lines(self, lines):
         self.__new_list = []
-        pool = WorkersPool(max(100, self.__config.THREAD_COUNT))
+        pool = WorkersPool(100)
         for i in lines:
             pool.add_task(Task(self.__check_simple, args=(i, )))
         progress_printing_thread = threading.Thread(target=self.__print_progress, args=(len(lines),))
