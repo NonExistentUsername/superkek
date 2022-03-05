@@ -1,7 +1,12 @@
 import random
 import requests
+import urllib
+import socks
+import urllib.request
+import urllib.error
 from threading import Lock
 from files.workers_pool import *
+from sockshandler import SocksiPyHandler
 
 console_log = logging.getLogger('console')
 file_log = logging.getLogger('file')
@@ -142,7 +147,8 @@ class Checker:
             self.__checked()
             return
 
-        for protocol in ['http', 'socks4', 'socks5']:
+        
+        for protocol in ['http', 'https', 'socks4', 'socks5']:
             proxy_dict = {
                 'https': f'{protocol}://{proxy_str}',
                 'http': f'{protocol}://{proxy_str}',
@@ -152,6 +158,39 @@ class Checker:
                 if response.status_code == 200:
                     self.__add_good_proxy(Proxy(ip, port, protocol))
             except:
+                pass
+        self.__checked()
+
+
+
+    def __check_simple2(self, proxy_str):
+        try:
+            ip = proxy_str.split(':')[0]
+            port = proxy_str.split(':')[1]
+        except IndexError:
+            file_log.debug('Bad line: {0}'.format(proxy_str))
+            self.__checked()
+            return
+        
+        for protocol in ['http', 'https', 'socks4', 'socks5']:
+            try:
+                url = random.choice(Checker.__links)
+                if protocol in ['http', 'htpps']:
+                    proxy_handler = urllib.request.ProxyHandler({protocol: proxy_str})        
+                elif protocol == 'socks4':
+                    proxy_handler = SocksiPyHandler(socks.PROXY_TYPE_SOCKS4,
+                                                    ip, int(port))
+                else:
+                    proxy_handler = SocksiPyHandler(socks.PROXY_TYPE_SOCKS5,
+                                                    ip, int(port))
+                opener = urllib.request.build_opener(proxy_handler)
+                opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+                urllib.request.install_opener(opener)        
+                sock=urllib.request.urlopen(url, timeout = 2 * self.__config.TIMEOUT)
+
+                if sock.code == 200:
+                    self.__add_good_proxy(Proxy(ip, port, protocol))
+            except Exception as e:
                 pass
         self.__checked()
 
@@ -169,7 +208,7 @@ class Checker:
         self.__new_list = []
         pool = WorkersPool(max(100, self.__config.THREAD_COUNT))
         for i in lines:
-            pool.add_task(Task(self.__check_simple, args=(i, )))
+            pool.add_task(Task(self.__check_simple2, args=(i, )))
         progress_printing_thread = threading.Thread(target=self.__print_progress, args=(len(lines),))
         progress_printing_thread.start()
         pool.start()
