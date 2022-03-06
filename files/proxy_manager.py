@@ -1,12 +1,7 @@
 import random
 import requests
-import urllib
-import socks
-import urllib.request
-import urllib.error
 from threading import Lock
 from files.workers_pool import *
-from sockshandler import SocksiPyHandler
 import json
 
 console_log = logging.getLogger('console')
@@ -104,8 +99,26 @@ class SumTree:
     def add_value(self, pos, value = 1):
         self.root.upd(1, self.size, pos, value)
 
-    def find_pos(self, sum):
-        return self.root.find(1, self.size, sum * self.root.get(1, self.size, 1, self.size))
+    def find_pos(self, k, l = None , r = None):
+        if l == None:
+            l = 1
+        if r == None:
+            r = self.size
+        d = 0
+        if l > 0:
+            d = self.root.get(1, self.size, 1, l - 1)
+        return self.root.find(1, self.size, k * self.root.get(1, self.size, l, r) + d)
+
+    def find_pos_d(self, k, segments):
+        sum = 0
+        for l, r in segments:
+            sum += self.root.get(1, self.size, l, r)
+        for l, r in segments:
+            if self.root.get(1, self.size, 1, r) >= k * sum:
+                tl, tr = (l, r)
+                break
+        
+        return self.find_pos(k, tl, tr)
 
     def get_cnt_good(self):
         return self.root.get_cnt(1, self.size, self.root.get(1, self.size, 1, self.size) // self.size)
@@ -117,7 +130,7 @@ class Proxy:
         self.TYPE = type
 
     def __str__(self):
-        return '<' + self.TYPE + '>' + self.IP + ':' + self.PORT
+        return self.TYPE + '://' + self.IP + ':' + self.PORT
 
 class Checker:
     def __get_my_ip(self):
@@ -131,9 +144,9 @@ class Checker:
         self.__config = config
         self.__cnt_checked = 0
 
-        self.__cnt_socks = 0
-        self.__cnt_http = 0
-        self.__cnt_https = 0
+        self.cnt_socks = 0
+        self.cnt_http = 0
+        self.cnt_https = 0
         
         self.__my_ip = self.__get_my_ip()
 
@@ -143,11 +156,11 @@ class Checker:
             self.__new_list.append(proxy)
             file_log.debug('Added proxy: {0}'.format(proxy))
             if proxy.TYPE == 'http':
-                self.__cnt_http += 1
+                self.cnt_http += 1
             elif proxy.TYPE in ['socks4', 'socks5']:
-                self.__cnt_socks += 1
+                self.cnt_socks += 1
             elif proxy.TYPE == 'https':
-                self.__cnt_https += 1
+                self.cnt_https += 1
         self.__cnt_checked += 1
         self.__lock.release()
 
@@ -157,7 +170,7 @@ class Checker:
             port = proxy_str.split(':')[1]
         except IndexError:
             file_log.debug('Bad line: {0}'.format(proxy_str))
-            self.__checked()
+            self.__checked([])
             return
 
         good = []        
@@ -202,6 +215,10 @@ class ProxyManager:
     def __init__(self):
         self.__proxies = []
 
+        self.cnt_socks = 0
+        self.cnt_http = 0
+        self.cnt_https = 0
+
     def __str__(self):
         result = '['
         first = True
@@ -216,8 +233,20 @@ class ProxyManager:
     def __len__(self):
         return len(self.__proxies)
 
+    def __type_to_pos(proxy):
+        if proxy.TYPE in ['socks4', 'socks5']:
+            return 0
+        elif proxy.TYPE == 'https':
+            return 1
+        elif proxy.TYPE == 'http':
+            return 2
+        return 3
+
     def build_tree(self):
         file_log.debug('ProxyManager.build_tree start')
+        self.__proxies.sort(key=ProxyManager.__type_to_pos)
+        for i in self.__proxies:
+            console_log.debug(i)
         self.__tree = SumTree(len(self.__proxies))
         self.__proxy_to_id = {}
         for i in range(len(self.__proxies)):
@@ -231,18 +260,53 @@ class ProxyManager:
         if proxy in self.__proxy_to_id:
             self.__tree.add_value(self.__proxy_to_id[proxy] + 1)
 
-    def get_rand(self):
-        # return random.choice(self.__proxies)
+#   socks    https http
+#   ||||||||:|||||:|||||||||
+
+    def get_rand_socks(self):
+        if self.cnt_socks == 0:
+            return None
         r = random.random()
-        id = self.__tree.find_pos(r)
-        id -= 1
+        id = self.__tree.find_pos(r, 1, self.cnt_socks) - 1
         return self.__proxies[id]
+
+    def get_rand_http(self):
+        if self.cnt_http == 0:
+            return None
+        r = random.random()
+        id = self.__tree.find_pos(r, self.cnt_socks + self.cnt_https + 1) - 1
+        return self.__proxies[id]
+
+    def get_rand_socks_https(self):
+        if self.cnt_https + self.cnt_socks == 0:
+            return None
+        r = random.random()
+        id = self.__tree.find_pos(r, 1, self.cnt_socks + self.cnt_https) - 1
+        return self.__proxies[id]
+
+    def get_rand_socks_http(self):
+        if self.cnt_http + self.cnt_socks == 0:
+            return None
+        r = random.random()
+        id = self.__tree.find_pos_d(r, [(1, self.cnt_socks), (self.cnt_socks + self.cnt_https + 1, self.__tree.size)]) - 1
+        return self.__proxies[id]
+
+    def get_rand(self, target):
+        if target.PROTOCOL == 'http':
+            return self.get_rand_socks_http()
+        elif target.PROTOCOL == 'https':
+            return self.get_rand_socks_https()
+        else:
+            return self.get_rand_socks()
 
     def load_from_list(self, lines, config):
         lines = list(dict.fromkeys(lines))
         console_log.info('Proxy lines: {0}'.format(len(lines)))
         checker = Checker(config)
         good_proxies = checker.gen_good_list_from_lines(lines)
+        self.cnt_socks += checker.cnt_socks
+        self.cnt_http += checker.cnt_http
+        self.cnt_https += checker.cnt_https
         self.__proxies += good_proxies
 
     def load_from_file(self, file_path, config):
