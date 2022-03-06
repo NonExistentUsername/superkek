@@ -4,8 +4,7 @@ from threading import Lock
 from files.workers_pool import *
 import json
 
-console_log = logging.getLogger('console')
-file_log = logging.getLogger('file')
+logger = logging.getLogger('logger')
 
 class Node:
     def __init__(self, id, value = 0, left = None, right = None):
@@ -154,7 +153,7 @@ class Checker:
         self.__lock.acquire()
         for proxy in good_proxy_list:
             self.__new_list.append(proxy)
-            file_log.debug('Added proxy: {0}'.format(proxy))
+            logger.debug('Added proxy: {0}'.format(proxy))
             if proxy.TYPE == 'http':
                 self.cnt_http += 1
             elif proxy.TYPE in ['socks4', 'socks5']:
@@ -169,7 +168,7 @@ class Checker:
             ip = proxy_str.split(':')[0]
             port = proxy_str.split(':')[1]
         except IndexError:
-            file_log.debug('Bad line: {0}'.format(proxy_str))
+            logger.debug('Bad line: {0}'.format(proxy_str))
             self.__checked([])
             return
 
@@ -192,12 +191,12 @@ class Checker:
     def __print_progress(self, list_size, step = 5):
         checked = self.__cnt_checked
         total = 0
-        console_log.info('Proxy checking progress: {0}%'.format(total))
+        logger.info('Proxy checking progress: {0}%'.format(total))
         while checked < list_size:
             checked = self.__cnt_checked
             if checked / list_size * 100 >= total + step:
                 total += step
-                console_log.info('Proxy checking progress: {0}%'.format(total))
+                logger.info('Proxy checking progress: {0}%'.format(total))
 
     def gen_good_list_from_lines(self, lines):
         self.__new_list = []
@@ -243,13 +242,13 @@ class ProxyManager:
         return 3
 
     def build_tree(self):
-        file_log.debug('ProxyManager.build_tree start')
+        logger.debug('ProxyManager.build_tree start')
         self.__proxies.sort(key=ProxyManager.__type_to_pos)
         self.__tree = SumTree(len(self.__proxies))
         self.__proxy_to_id = {}
         for i in range(len(self.__proxies)):
             self.__proxy_to_id[self.__proxies[i]] = i
-        file_log.debug('ProxyManager.build_tree done')
+        logger.debug('ProxyManager.build_tree done')
 
     def get_good_proxies_count(self):
         return self.__tree.get_cnt_good()
@@ -299,7 +298,7 @@ class ProxyManager:
 
     def load_from_list(self, lines, config):
         lines = list(dict.fromkeys(lines))
-        console_log.info('Proxy lines: {0}'.format(len(lines)))
+        logger.info('Proxy lines: {0}'.format(len(lines)))
         checker = Checker(config)
         good_proxies = checker.gen_good_list_from_lines(lines)
         self.cnt_socks += checker.cnt_socks
@@ -311,7 +310,7 @@ class ProxyManager:
         try:
             self.load_from_list(open(file_path, 'r').read().split('\n'), config)
         except OSError as err:
-            console_log.critical("OS error: {0}".format(err))
+            logger.critical("OS error: {0}".format(err))
         except Exception as e:
-            console_log.exception(e)
+            logger.exception(e)
 

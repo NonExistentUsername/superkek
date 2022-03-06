@@ -1,22 +1,21 @@
 import logging
 
-console_log = logging.getLogger('console')
-file_log = logging.getLogger('file')
+logger = logging.getLogger('logger')
 
 class Config:
     def __load_config(self, data):
         if 'THREAD_COUNT' in data:
             self.THREAD_COUNT = int(data['THREAD_COUNT'])
-            file_log.debug('Config loaded THREAD_COUNT {0}'.format(self.THREAD_COUNT))
+            logger.debug('Config loaded THREAD_COUNT {0}'.format(self.THREAD_COUNT))
         if 'MAX_SIMPLE_CONNECTION_REQUESTS' in data:
             self.MAX_SIMPLE_CONNECTION_REQUESTS = int(data['MAX_SIMPLE_CONNECTION_REQUESTS'])
-            file_log.debug('Config loaded MAX_SIMPLE_CONNECTION_REQUESTS {0}'.format(self.MAX_SIMPLE_CONNECTION_REQUESTS))
+            logger.debug('Config loaded MAX_SIMPLE_CONNECTION_REQUESTS {0}'.format(self.MAX_SIMPLE_CONNECTION_REQUESTS))
         if 'TIMEOUT' in data:
             self.TIMEOUT = float(data['TIMEOUT'])
-            file_log.debug('Config loaded TIMEOUT {0}'.format(self.TIMEOUT))
+            logger.debug('Config loaded TIMEOUT {0}'.format(self.TIMEOUT))
         if 'CONSOLE_LOG_TIMEOUT' in data:
             self.CONSOLE_LOG_TIMEOUT = float(data['CONSOLE_LOG_TIMEOUT'])
-            file_log.debug('Config loaded CONSOLE_LOG_TIMEOUT {0}'.format(self.CONSOLE_LOG_TIMEOUT))
+            logger.debug('Config loaded CONSOLE_LOG_TIMEOUT {0}'.format(self.CONSOLE_LOG_TIMEOUT))
 
     def __init__(self, data):
         self.MAX_SIMPLE_CONNECTION_REQUESTS = 20

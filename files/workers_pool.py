@@ -1,8 +1,8 @@
 import threading
 import logging
 
-console_log = logging.getLogger('console')
-file_log = logging.getLogger('file')
+logger = logging.getLogger('logger')
+
 class Task:
     def __init__(self, func, args=()):
         self.__func = func
@@ -23,16 +23,16 @@ class Worker(threading.Thread):
                 try:
                     task.call()
                 except Exception as e:
-                    file_log.exception(e)
-                    console_log.critical('Thread crashed!')
+                    logger.exception(e)
+                    logger.critical('Thread crashed!')
 
 class WorkersPool:
     def __gen_threads(self, cnt):
-        file_log.debug('WorkersPool.__gen_threads({0}) started'.format(cnt))
+        logger.debug('WorkersPool.__gen_threads({0}) started'.format(cnt))
         for id in range(cnt):
             worker = Worker(self)
             self.__threads.append(worker)
-        file_log.debug('WorkersPool.__gen_threads({0}) done'.format(cnt))
+        logger.debug('WorkersPool.__gen_threads({0}) done'.format(cnt))
 
     def __init__(self, cnt):
         self.__lock = threading.Lock()
@@ -43,18 +43,18 @@ class WorkersPool:
         self.__gen_threads(cnt)
 
     def start(self):
-        file_log.debug('WorkersPool.start() started')
+        logger.debug('WorkersPool.start() started')
         self.__is_working = True
         for thread in self.__threads:
             thread.start()
-        file_log.debug('WorkersPool.start() done')
+        logger.debug('WorkersPool.start() done')
 
     def join(self):
-        file_log.debug('WorkersPool.join() started')
+        logger.debug('WorkersPool.join() started')
         self.__is_working = False
         for thread in self.__threads:
             thread.join()
-        file_log.debug('WorkersPool.join() done')
+        logger.debug('WorkersPool.join() done')
 
     def is_working(self):
         self.__lock.acquire()

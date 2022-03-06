@@ -1,10 +1,9 @@
 from files.auxiliary_tools import *
 import random
-import traceback
 import logging
 
-console_log = logging.getLogger('console')
-file_log = logging.getLogger('file')
+logger = logging.getLogger('logger')
+
 class Target:
     def __init__(self, host, port, path, protocol):
         self.HOST = host
@@ -91,7 +90,7 @@ class TargetManager:
         for line in lines:
             res = TargetManager.create_target_from_url(line)
             if res != None:
-                file_log.debug('Added target: ' + str(res))
+                logger.debug('Added target: ' + str(res))
                 self.__targets.append(res)
     
     def load_from_file(self, file_path):
@@ -99,9 +98,9 @@ class TargetManager:
             lines = load_lines(file_path)
             self.load_from_list(lines)
         except OSError as err:
-            console_log.critical("OS error: {0}".format(err))
+            logger.critical("OS error: {0}".format(err))
         except Exception as e:
-            console_log.exception(e)
+            logger.exception(e)
 
     def get_rand(self):
         return random.choice(self.__targets)

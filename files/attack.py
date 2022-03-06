@@ -6,8 +6,7 @@ import socks
 import ssl
 import string
 
-console_log = logging.getLogger('console')
-file_log = logging.getLogger('file')
+logger = logging.getLogger('logger')
 
 class Weapon(Observable):
     def __init__(self, config):
@@ -104,7 +103,7 @@ class Weapon(Observable):
         elif target.PROTOCOL == 'https' and proxy.TYPE == 'https':
             self.attack_url_https(target, proxy)
         else:
-            console_log.warning('Attack skipped (Target: {0}, Proxy: {1})'.format(target, proxy))
+            logger.warning('Attack skipped (Target: {0}, Proxy: {1})'.format(target, proxy))
 
     def attack_url(self, target, proxy):
         if proxy.TYPE in ['socks4', 'socks5']:
@@ -126,7 +125,7 @@ class Weapon(Observable):
         if proxy.TYPE in ['socks4', 'socks5']:
             self.attack_unknown_protocol_socks(target, proxy)
         else:
-            console_log.warning('Attack skipped (Target: {0}, Proxy: {1})'.format(target, proxy))
+            logger.warning('Attack skipped (Target: {0}, Proxy: {1})'.format(target, proxy))
 
     def attack(self, target, proxy):
         if target.PROTOCOL in ['http', 'https']:
