@@ -15,7 +15,7 @@ class Weapon(Observable):
 
     def create_socket_using_socks_proxy(self, target, proxy):
         if target.PROTOCOL == 'udp':
-            pass
+            s = socks.socksocket(socket.AF_INET, socket.SOCK_DGRAM)
         else:    
             s = socks.socksocket(socket.AF_INET, socket.SOCK_STREAM)
         if proxy.TYPE == 'socks4':
@@ -113,11 +113,6 @@ class Weapon(Observable):
     
     def attack_unknown_protocol_socks(self, target, proxy):
         s = self.establish_connection_socks(target, proxy)
-        if s != None:
-            self.attack_with_socket_and_generator(target, s, self.flood_generator)
-
-    def attack_unknown_protocol_http(self, target, proxy):
-        s = self.establish_connection_http(proxy)
         if s != None:
             self.attack_with_socket_and_generator(target, s, self.flood_generator)
 

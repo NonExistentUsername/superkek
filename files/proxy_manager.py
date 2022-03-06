@@ -293,6 +293,8 @@ class ProxyManager:
             return self.get_rand_socks_http()
         elif target.PROTOCOL == 'https':
             return self.get_rand_socks_https()
+        elif target.PROTOCOL in ['upd', 'tcp']:
+            return self.get_rand_socks()
         else:
             return self.get_rand_socks()
 

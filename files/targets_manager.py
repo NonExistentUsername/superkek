@@ -52,6 +52,7 @@ class TargetManager:
     def create_target_from_url(url):
         if len(url) == 0:
             return None
+        url = url.lower()
 
         if url[:8] == 'https://':
             url = url[8:]
@@ -59,6 +60,12 @@ class TargetManager:
         elif url[:7] == 'http://':
             url = url[7:]
             protocol = 'http'
+        elif url[:6] == 'tcp://':
+            url = url[6:]
+            protocol = 'tcp'
+        elif url[:6] == 'udp://':
+            url = url[6:]
+            protocol = 'udp'
         else:
             if TargetManager.is_ip(url.split('/')[0].split(':')[0]):
                 protocol = 'unknown'
@@ -73,6 +80,8 @@ class TargetManager:
                 port = 80
             elif protocol == 'https':
                 port = 443
+            elif protocol == 'udp':
+                port = 53
             else:
                 return None
         else:
