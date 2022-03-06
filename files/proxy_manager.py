@@ -245,8 +245,6 @@ class ProxyManager:
     def build_tree(self):
         file_log.debug('ProxyManager.build_tree start')
         self.__proxies.sort(key=ProxyManager.__type_to_pos)
-        for i in self.__proxies:
-            console_log.debug(i)
         self.__tree = SumTree(len(self.__proxies))
         self.__proxy_to_id = {}
         for i in range(len(self.__proxies)):
