@@ -180,7 +180,7 @@ class Checker:
                 'http': f'{protocol}://{proxy_str}',
             }
             try:
-                response = requests.get('https://branchup.pro/whatsmyip.php', proxies=proxy_dict, timeout = 2 * self.__config.TIMEOUT, allow_redirects=True)
+                response = requests.get('https://branchup.pro/whatsmyip.php', proxies=proxy_dict, timeout = 5, allow_redirects=True)
                 __json = json.loads(response.content)
                 __ip = __json['ip']
                 if response.status_code == 200 and self.__my_ip != __ip:
