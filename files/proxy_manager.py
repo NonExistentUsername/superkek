@@ -130,17 +130,24 @@ class Checker:
         self.__new_list = None
         self.__config = config
         self.__cnt_checked = 0
+
+        self.__cnt_socks = 0
+        self.__cnt_http = 0
+        self.__cnt_https = 0
         
         self.__my_ip = self.__get_my_ip()
 
-    def __add_good_proxy(self, proxy):
+    def __checked(self, good_proxy_list):
         self.__lock.acquire()
-        self.__new_list.append(proxy)
-        file_log.debug('Added proxy: {0}'.format(proxy))
-        self.__lock.release()
-
-    def __checked(self):
-        self.__lock.acquire()
+        for proxy in good_proxy_list:
+            self.__new_list.append(proxy)
+            file_log.debug('Added proxy: {0}'.format(proxy))
+            if proxy.TYPE == 'http':
+                self.__cnt_http += 1
+            elif proxy.TYPE in ['socks4', 'socks5']:
+                self.__cnt_socks += 1
+            elif proxy.TYPE == 'https':
+                self.__cnt_https += 1
         self.__cnt_checked += 1
         self.__lock.release()
 
@@ -153,7 +160,7 @@ class Checker:
             self.__checked()
             return
 
-        
+        good = []        
         for protocol in ['http', 'https', 'socks4', 'socks5']:
             proxy_dict = {
                 'https': f'{protocol}://{proxy_str}',
@@ -164,10 +171,10 @@ class Checker:
                 __json = json.loads(response.content)
                 __ip = __json['ip']
                 if response.status_code == 200 and self.__my_ip != __ip:
-                    self.__add_good_proxy(Proxy(ip, port, protocol))
+                    good.append(Proxy(ip, port, protocol))
             except:
                 pass
-        self.__checked()
+        self.__checked(good)
 
     def __print_progress(self, list_size, step = 5):
         checked = self.__cnt_checked
