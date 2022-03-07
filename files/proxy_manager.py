@@ -3,6 +3,7 @@ import requests
 from threading import Lock
 from files.workers_pool import *
 import json
+import time
 
 logger = logging.getLogger('logger')
 
@@ -197,6 +198,7 @@ class Checker:
             if checked / list_size * 100 >= total + step:
                 total += step
                 logger.info('Proxy checking progress: {0}%'.format(total))
+            time.sleep(0.2)
 
     def gen_good_list_from_lines(self, lines):
         self.__new_list = []

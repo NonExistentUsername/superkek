@@ -1,8 +1,7 @@
-import time
 import datetime
+from socket import timeout
 import threading
 import logging
-import sys
 import os
 import requests
 from files.workers_pool import *
@@ -12,7 +11,6 @@ from files.attack import *
 from files.requests_generator import *
 from files.config import *
 from files.stats import *
-from requests import adapters
 
 class MyHandler(logging.Handler):
     def __init__(self, file_path):
@@ -144,27 +142,28 @@ def gen_full_stats():
 
     return start_time + '\n' + delivered + '\n' + bad + '\n' + good_proxies_count + '\n' + good_proxy_connections + '\n' + proxy_errors + '\n' + bytes
 
-def print_stat(timeout = 60):
-    stats = ddos.get_stats()
-    last_sent_bytes = 0
-    last_successfull_p = 0
-    last_errors_p = 0
-    while True:
-        ms_start = get_ms_time()
+class StatsPrinter:
+    def __init__(self, stats):
+        self.stats = stats
+        self.last_sent_bytes = 0
+        self.last_successfull_p = 0
+        self.last_errors_p = 0
+
+    def call(self, timeout):
         packages_stats = gen_full_stats()
-        sent_bytes_now = stats.get_bytes()
-        delta_sent_bytes = sent_bytes_now - last_sent_bytes
-        last_sent_bytes = sent_bytes_now
+        sent_bytes_now = self.stats.get_bytes()
+        delta_sent_bytes = sent_bytes_now - self.last_sent_bytes
+        self.last_sent_bytes = sent_bytes_now
         converted = convert_bytes(delta_sent_bytes)
         bytes = 'Sent in the last {1} seconds: {0}'.format(delta_sent_bytes, config.CONSOLE_LOG_TIMEOUT)
         if converted != None:
             bytes += ' ({0:.2f} {1})'.format(converted[0], converted[1], config.CONSOLE_LOG_TIMEOUT)
-        succesful_p = stats.get_good_proxy()
-        delta_successful = succesful_p - last_successfull_p
-        last_successfull_p = succesful_p
-        errors_p = stats.get_bad_proxy()
-        delta_errors = errors_p - last_errors_p
-        last_errors_p = errors_p
+        succesful_p = self.stats.get_good_proxy()
+        delta_successful = succesful_p - self.last_successfull_p
+        self.last_successfull_p = succesful_p
+        errors_p = self.stats.get_bad_proxy()
+        delta_errors = errors_p - self.last_errors_p
+        self.last_errors_p = errors_p
         proxy_connections = max(1, delta_successful + delta_errors)
         delta_successful_message = 'Successful proxy connection in the last {0} seconds: {2:.1f}% ({1})'.format(timeout, convert_cnt(delta_successful), delta_successful/(proxy_connections)*100)
         
@@ -172,12 +171,24 @@ def print_stat(timeout = 60):
         message_text = '\n' + packages_stats + '\n' + bytes + '\n' + delta_successful_message + '\n' + delta_errors_p
         logger.info(message_text)
         logger.info('-------------------')
-        t = timeout - (get_ms_time() - ms_start) / 1000.
-        if t > 0:
-            time.sleep(t)
 
-traffic_logger = threading.Thread(target=print_stat, args=(config.CONSOLE_LOG_TIMEOUT,))
-traffic_logger.start()
+class TimerStart:
+    def __init__(self, timeout, func):
+        self.timeout = timeout
+        self.func = func
+
+    def __rec_call(self):
+        self.func()
+        self.__t += self.timeout * 1000
+        timer = threading.Timer((self.__t - get_ms_time())/1000, self.__rec_call)
+        timer.start()
+
+    def start(self):
+        self.__t = get_ms_time()
+        self.__rec_call()
+
+stats_printer = StatsPrinter(ddos.get_stats())
+my_timer = TimerStart(config.CONSOLE_LOG_TIMEOUT, lambda: stats_printer.call(config.CONSOLE_LOG_TIMEOUT))
+my_timer.start()
 
 ddos_thread.join()
-traffic_logger.join()
