@@ -78,6 +78,7 @@ class Weapon(Observable):
             s.connect((proxy.IP, int(proxy.PORT)))
             self.notify(['successfully connected to proxy', proxy])
         except Exception as e:
+            s.close()
             self.notify(['unable to connect to proxy'])
             return None
         return s
